@@ -2,7 +2,6 @@ library(DiffBind)
 library(readxl)
 library(ggplot2)
 
-##reading in this way worked
 setwd("D:/5_R_generated_Data/JN/3. 2022 ATAC/Peak Lists")
 JNsamples <- read.csv("JNshWT1_NPpeaks.csv")
 
