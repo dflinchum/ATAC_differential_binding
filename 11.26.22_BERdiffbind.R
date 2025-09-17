@@ -1,7 +1,6 @@
 library(DiffBind)
 library(readxl)
 
-##reading in this way worked
 setwd("D:/5_R_generated_Data/BER/3. 2022 ATAC/Peak Lists")
 BERsamples <- read.csv("BERshWT1_NPpeaks.csv")
 
