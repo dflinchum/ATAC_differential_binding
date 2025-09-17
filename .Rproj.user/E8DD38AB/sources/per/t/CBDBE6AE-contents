@@ -1,0 +1,63 @@
+BiocManager::install("org.Hs.eg.db")
+
+library(tidygraph)
+library(ChIPseeker)
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+txdb <- TxDb.Hsapiens.UCSC.hg19.knownGene
+library(clusterProfiler)
+library(readxl)
+
+#load DSRCT consensus peaks
+setwd("D:/5_R_generated_Data/BER/3. 2022 ATAC/Peak Lists")
+BER_DEsamples <- read.csv("BER_DSRCTshWT1_Differential_Peak_Binding_NP.csv")
+View(BER_DEsamples)
+
+#Create sets with differentially expressed peaks
+BER_allpeaks <- BER_DEsamples[,c(2,3,4,13,10)]
+BER_DEpeaks <- BER_DEsamples[BER_DEsamples$FDR<0.05,c(2,3,4,13,10)]
+BER_negDoxpeaks <- BER_DEsamples[BER_DEsamples$FDR<0.05 & BER_DEsamples$Fold > 0,c(2,3,4,13,10)]
+BER_posDoxpeaks <- BER_DEsamples[BER_DEsamples$FDR<0.05 & BER_DEsamples$Fold < 0,c(2,3,4,13,10)]
+
+write.table(BER_allpeaks, "BER_NP_allpeaks.bed", sep="\t", col.names=FALSE, row.names=FALSE, quote=FALSE)
+write.table(BER_DEpeaks, "BER_NP_DEpeaks.bed", sep="\t", col.names=FALSE, row.names=FALSE, quote=FALSE)
+write.table(BER_negDoxpeaks, "BER_NP_negDoxpeaks.bed", sep="\t", col.names=FALSE, row.names=FALSE, quote=FALSE)
+write.table(BER_posDoxpeaks, "BER_NP_posDoxpeaks.bed", sep="\t", col.names=FALSE, row.names=FALSE, quote=FALSE)
+
+BER_sampleFiles <- list.files("BER_NP_shWT1_ATAC_Analysis", pattern=".bed", full.names=T)
+
+BER_sampleFiles <- as.list(c("BER_NP_allpeaks.bed", "BER_NP_DEpeaks.bed", "BER_NP_negDoxpeaks.bed", "BER_NP_posDoxpeaks.bed"))
+
+BER_allpeaksAnno <- annotatePeak("BER_NP_allpeaks.bed", TxDb=txdb, tssRegion=c(-3000,3000), annoDb="org.Hs.eg.db")
+BER_DEpeaksAnno <- annotatePeak("BER_NP_DEpeaks.bed", TxDb=txdb, tssRegion=c(-3000,3000), annoDb="org.Hs.eg.db")
+BER_negDoxpeaksAnno <- annotatePeak("BER_NP_negDoxpeaks.bed", TxDb=txdb, tssRegion=c(-3000,3000), annoDb="org.Hs.eg.db")
+BER_posDoxpeaksAnno <- annotatePeak("BER_NP_posDoxpeaks.bed", TxDb=txdb, tssRegion=c(-3000,3000), annoDb="org.Hs.eg.db")
+
+plotAnnoBar(BER_allpeaksAnno)
+plotAnnoBar(BER_DEpeaksAnno)
+plotAnnoBar(BER_negDoxpeaksAnno)
+plotAnnoBar(BER_posDoxpeaksAnno)
+plotAnnoPie(BER_allpeaksAnno, main="BER Peaks")
+plotAnnoPie(BER_DEpeaksAnno, main="BER DE Peaks")
+plotAnnoPie(BER_negDoxpeaksAnno, main="BER neg dox peaks")
+plotAnnoPie(BER_posDoxpeaksAnno, main="BER pos dox peaks")
+
+BER_NP_allpeaks_output <- as.data.frame(BER_allpeaksAnno)
+BER_NP_DEpeaks_output <- as.data.frame(BER_DEpeaksAnno)
+BER_NP_negDoxpeaks_output <- as.data.frame(BER_negDoxpeaksAnno)
+BER_NP_posDoxpeaks_output <- as.data.frame(BER_posDoxpeaksAnno)
+
+write.csv(BER_NP_allpeaks_output, "BER_allpeaks_annotation_NP.csv")
+write.csv(BER_NP_DEpeaks_output, "BER_DEpeaks_annotation_NP.csv")
+write.csv(BER_NP_negDoxpeaks_output, "BER_negDoxpeaks_annotation_NP.csv")
+write.csv(BER_NP_posDoxpeaks_output, "BER_posDoxpeaks_annotation_NP.csv")
+
+##tag matrix stuff
+BER_allpeaks<-readPeakFile("BER_NP_allpeaks.bed")
+promoter <- getPromoters(TxDb=txdb, upstream=3000, downstream=3000)
+BER_tagMatrix <- getTagMatrix(BER_allpeaks, windows=promoter)
+BER_tagHeatmap(BER_tagMatrix, xlim=c(-3000, 3000), color="red")
+plotAvgProf(BER_tagMatrix, xlim=c(-3000, 3000),
+            xlab="Genomic Region (5'->3')", ylab = "Read Count Frequency")
+
+plotAvgProf(BER_tagMatrix, xlim=c(-3000, 3000), conf=0.95,resample=500, facet="row")
+BER_tagHeatmap(BER_tagMatrix, xlim=c(-3000, 3000), color=NULL)

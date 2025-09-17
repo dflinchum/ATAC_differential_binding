@@ -1,0 +1,66 @@
+BiocManager::install("org.Hs.eg.db")
+
+library(tidygraph)
+library(ChIPseeker)
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+txdb <- TxDb.Hsapiens.UCSC.hg19.knownGene
+library(clusterProfiler)
+library(readxl)
+
+#load DSRCT consensus peaks
+setwd("D:/5_R_generated_Data/JN/3. 2022 ATAC/Peak Lists")
+JN_DEsamples <- read.csv("JN_DSRCTshWT1_Differential_Peak_Binding_NP.csv")
+View(JN_DEsamples)
+
+#Create sets with differentially expressed peaks
+JN_allpeaks <- JN_DEsamples[,c(2,3,4,13,10)]
+JN_DEpeaks <- JN_DEsamples[JN_DEsamples$FDR<0.05,c(2,3,4,13,10)]
+JN_negDoxpeaks <- JN_DEsamples[JN_DEsamples$FDR<0.05 & JN_DEsamples$Fold > 0,c(2,3,4,13,10)]
+JN_posDoxpeaks <- JN_DEsamples[JN_DEsamples$FDR<0.05 & JN_DEsamples$Fold < 0,c(2,3,4,13,10)]
+
+write.table(JN_allpeaks, "JN_NP_allpeaks.bed", sep="\t", col.names=FALSE, row.names=FALSE, quote=FALSE)
+write.table(JN_DEpeaks, "JN_NP_DEpeaks.bed", sep="\t", col.names=FALSE, row.names=FALSE, quote=FALSE)
+write.table(JN_negDoxpeaks, "JN_NP_negDoxpeaks.bed", sep="\t", col.names=FALSE, row.names=FALSE, quote=FALSE)
+write.table(JN_posDoxpeaks, "JN_NP_posDoxpeaks.bed", sep="\t", col.names=FALSE, row.names=FALSE, quote=FALSE)
+
+JN_sampleFiles <- list.files("JN_NP_shWT1_ATAC_Analysis", pattern=".bed", full.names=T)
+
+JN_sampleFiles <- as.list(c("JN_NP_allpeaks.bed", "JN_NP_DEpeaks.bed", "JN_NP_negDoxpeaks.bed", "JN_NP_posDoxpeaks.bed"))
+
+JN_allpeaksAnno <- annotatePeak("JN_NP_allpeaks.bed", TxDb=txdb, tssRegion=c(-3000,3000), annoDb="org.Hs.eg.db")
+JN_DEpeaksAnno <- annotatePeak("JN_NP_DEpeaks.bed", TxDb=txdb, tssRegion=c(-3000,3000), annoDb="org.Hs.eg.db")
+JN_negDoxpeaksAnno <- annotatePeak("JN_NP_negDoxpeaks.bed", TxDb=txdb, tssRegion=c(-3000,3000), annoDb="org.Hs.eg.db")
+JN_posDoxpeaksAnno <- annotatePeak("JN_NP_posDoxpeaks.bed", TxDb=txdb, tssRegion=c(-3000,3000), annoDb="org.Hs.eg.db")
+
+plotAnnoBar(JN_allpeaksAnno)
+plotAnnoBar(JN_DEpeaksAnno)
+plotAnnoBar(JN_negDoxpeaksAnno)
+plotAnnoBar(JN_posDoxpeaksAnno)
+plotAnnoPie(JN_allpeaksAnno, main="JN Peaks")
+plotAnnoPie(JN_DEpeaksAnno, main="JN DE Peaks")
+plotAnnoPie(JN_negDoxpeaksAnno, main="JN neg dox peaks")
+plotAnnoPie(JN_posDoxpeaksAnno, main="JN pos dox peaks")
+
+JN_NP_allpeaks_output <- as.data.frame(JN_allpeaksAnno)
+JN_NP_DEpeaks_output <- as.data.frame(JN_DEpeaksAnno)
+JN_NP_negDoxpeaks_output <- as.data.frame(JN_negDoxpeaksAnno)
+JN_NP_posDoxpeaks_output <- as.data.frame(JN_posDoxpeaksAnno)
+
+write.csv(JN_NP_allpeaks_output, "JN_allpeaks_annotation_NP.csv")
+write.csv(JN_NP_DEpeaks_output, "JN_DEpeaks_annotation_NP.csv")
+write.csv(JN_NP_negDoxpeaks_output, "JN_negDoxpeaks_annotation_NP.csv")
+write.csv(JN_NP_posDoxpeaks_output, "JN_posDoxpeaks_annotation_NP.csv")
+
+##tag matrix stuff
+JN_allpeaks<-readPeakFile("JN_NP_allpeaks.bed")
+promoter <- getPromoters(TxDb=txdb, upstream=3000, downstream=3000)
+JN_tagMatrix <- getTagMatrix(JN_allpeaks, windows=promoter)
+JN_tagHeatmap(JN_tagMatrix, xlim=c(-3000, 3000), color="red")
+plotAvgProf(JN_tagMatrix, title="JN", xlim=c(-3000, 3000),
+            xlab="Genomic Region (5'->3')", ylab = "Read Count Frequency")
+
+plotAvgProf2(JN_allpeaks, weightCol = V5, TxDb = txdb, upstream = 1000, downstream = 1000, xlab = "Genomic Region (5'->3')",ylab = "Peak Count Frequency",)
+
+
+plotAvgProf(JN_tagMatrix, xlim=c(-3000, 3000), conf=0.95,resample=500, facet="row")
+JN_tagHeatmap(JN_tagMatrix, xlim=c(-3000, 3000), color=NULL)
